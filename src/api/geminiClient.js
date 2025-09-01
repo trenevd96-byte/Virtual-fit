@@ -25,6 +25,16 @@ const makeGeminiRequest = async (endpoint, payload) => {
   }
 
   try {
+    // Check payload size before sending (Vercel 4.5MB limit)
+    const payloadJSON = JSON.stringify({ endpoint, payload });
+    const payloadSizeMB = new Blob([payloadJSON]).size / (1024 * 1024);
+    
+    if (payloadSizeMB > 4.0) { // 4MB safety margin
+      throw new Error(`Payload too large: ${payloadSizeMB.toFixed(1)}MB. Please use smaller images.`);
+    }
+    
+    console.log(`📦 Payload size: ${payloadSizeMB.toFixed(1)}MB`);
+    
     if (isProd) {
       // In production, proxy through backend to keep API key server-side
       const response = await fetch('/api/geminiHandler', {
@@ -32,7 +42,7 @@ const makeGeminiRequest = async (endpoint, payload) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ endpoint, payload })
+        body: payloadJSON
       });
 
       if (!response.ok) {

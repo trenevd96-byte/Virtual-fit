@@ -4,30 +4,38 @@
  */
 
 /**
- * Resize image to optimal dimensions for API
+ * Resize and compress image for API with size limit enforcement
  * @param {HTMLCanvasElement} canvas - Source canvas
  * @param {number} maxDimension - Maximum width or height
- * @returns {HTMLCanvasElement} - Resized canvas
+ * @param {number} targetSizeKB - Target file size in KB (default 800KB for safety)
+ * @returns {HTMLCanvasElement} - Resized and optimized canvas
  */
-const resizeImageForAPI = (canvas, maxDimension = 1024) => {
+const resizeImageForAPI = (canvas, maxDimension = 800, targetSizeKB = 800) => {
   const { width, height } = canvas;
   
-  if (width <= maxDimension && height <= maxDimension) {
-    return canvas;
+  // Start with aggressive sizing for Vercel limits
+  let currentMaxDim = Math.min(maxDimension, Math.max(width, height));
+  
+  // Always resize if larger than maxDimension
+  if (width > currentMaxDim || height > currentMaxDim) {
+    const ratio = Math.min(currentMaxDim / width, currentMaxDim / height);
+    const newWidth = Math.round(width * ratio);
+    const newHeight = Math.round(height * ratio);
+    
+    const resizedCanvas = document.createElement('canvas');
+    resizedCanvas.width = newWidth;
+    resizedCanvas.height = newHeight;
+    
+    const ctx = resizedCanvas.getContext('2d');
+    // Use high-quality scaling
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(canvas, 0, 0, newWidth, newHeight);
+    
+    return resizedCanvas;
   }
   
-  const ratio = Math.min(maxDimension / width, maxDimension / height);
-  const newWidth = Math.round(width * ratio);
-  const newHeight = Math.round(height * ratio);
-  
-  const resizedCanvas = document.createElement('canvas');
-  resizedCanvas.width = newWidth;
-  resizedCanvas.height = newHeight;
-  
-  const ctx = resizedCanvas.getContext('2d');
-  ctx.drawImage(canvas, 0, 0, newWidth, newHeight);
-  
-  return resizedCanvas;
+  return canvas;
 };
 
 /**
@@ -103,13 +111,35 @@ const loadImageToCanvas = (file) => {
  * @param {string} mimeType - MIME type
  * @returns {Promise<File>} - File object
  */
-const canvasToFile = (canvas, fileName, mimeType = 'image/jpeg') => {
-  return new Promise((resolve) => {
-    canvas.toBlob((blob) => {
-      const file = new File([blob], fileName, { type: mimeType });
-      resolve(file);
-    }, mimeType, 0.9); // 90% quality for JPEG
-  });
+const canvasToFile = async (canvas, fileName, mimeType = 'image/jpeg', maxSizeKB = 1200) => {
+  let quality = 0.8; // Start with 80% quality
+  let file;
+  
+  // Force JPEG for better compression
+  const outputMimeType = 'image/jpeg';
+  const outputFileName = fileName.replace(/\.[^/.]+$/, '.jpg');
+  
+  // Iteratively compress until under Vercel size limit
+  do {
+    file = await new Promise((resolve) => {
+      canvas.toBlob((blob) => {
+        const f = new File([blob], outputFileName, { 
+          type: outputMimeType,
+          lastModified: Date.now()
+        });
+        resolve(f);
+      }, outputMimeType, quality);
+    });
+    
+    console.log(`🔧 Compressed to ${(file.size / 1024).toFixed(0)}KB at quality ${(quality * 100).toFixed(0)}%`);
+    
+    if (file.size <= maxSizeKB * 1024) break;
+    
+    quality -= 0.1;
+    if (quality < 0.4) break; // Don't go below 40% quality
+  } while (file.size > maxSizeKB * 1024 && quality >= 0.4);
+  
+  return file;
 };
 
 /**
