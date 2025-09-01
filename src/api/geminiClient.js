@@ -14,31 +14,55 @@ const getApiKey = () => {
 
 // Make API request to Gemini
 const makeGeminiRequest = async (endpoint, payload) => {
-  const apiKey = getApiKey();
-  const url = `${GEMINI_API_BASE_URL}/${endpoint}?key=${apiKey}`;
+  const isProd = import.meta.env && import.meta.env.PROD;
 
-  // Set temperature for consistency
+  // Always enforce temperature for consistency
   if (!payload.generationConfig) {
     payload.generationConfig = {};
   }
-  payload.generationConfig.temperature = 0.5; // Adjusted for consistency
+  if (payload.generationConfig.temperature === undefined) {
+    payload.generationConfig.temperature = 0.5;
+  }
 
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload)
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.text();
-      throw new Error(`HTTP ${response.status}: ${errorData}`);
+    if (isProd) {
+      // In production, proxy through backend to keep API key server-side
+      const response = await fetch('/api/geminiHandler', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ endpoint, payload })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorData}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } else {
+      // In local dev, call Gemini directly using VITE_ key
+      const apiKey = getApiKey();
+      const url = `${GEMINI_API_BASE_URL}/${endpoint}?key=${apiKey}`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorData}`);
+      }
+      
+      const data = await response.json();
+      return data;
     }
-    
-    const data = await response.json();
-    return data;
   } catch (error) {
     console.error('Gemini API request failed:', error);
     throw error;
@@ -165,7 +189,7 @@ export const generateWithConfig = async (prompt, config = {}) => {
     const modelName = config.model || "gemini-2.5-flash";
     
     const generationConfig = {
-      temperature: config.temperature || 0.7,
+      temperature: config.temperature || 0.5,
       topP: config.topP || 0.8,
       topK: config.topK || 40,
       maxOutputTokens: config.maxOutputTokens || 1024,
