@@ -106,30 +106,24 @@ export default function TryOn() {
     if (!selectedGarment || !userImage || !userImage.file) return;
     
     setLoadingVirtualTryOn(true);
-    setTryOnProgress('🔍 Analyzing photo composition...');
+    setTryOnProgress('Initializing AI virtual try-on...');
     
     try {
       console.log('Generating virtual try-on with enhanced prompts and retry logic...');
       
-      // Set up enhanced progress tracking
-      setProcessingProgress(20);
+      // Set up progress tracking
       const originalConsoleLog = console.log;
       console.log = (message) => {
         if (message.includes('Pre-processing user image')) {
-          setTryOnProgress('🔧 Enhancing photo quality (skin tone, contrast, lighting)...');
-          setProcessingProgress(30);
+          setTryOnProgress('🔧 Enhancing image quality (skin tone, contrast, lighting)...');
         } else if (message.includes('Pre-processing custom garment')) {
           setTryOnProgress('🔧 Optimizing custom garment image...');
-          setProcessingProgress(40);
         } else if (message.includes('Pre-processing garment image from URL')) {
           setTryOnProgress('🔧 Enhancing garment image quality...');
-          setProcessingProgress(40);
         } else if (message.includes('Virtual try-on attempt')) {
-          setTryOnProgress('🎨 AI fitting garment to your body...');
-          setProcessingProgress(60);
+          setTryOnProgress(`AI attempt: ${message}`);
         } else if (message.includes('Retrying')) {
-          setTryOnProgress('🔄 Refining result with stricter parameters...');
-          setProcessingProgress(70);
+          setTryOnProgress('Retrying with different approach...');
         }
         originalConsoleLog(message);
       };
