@@ -4,6 +4,33 @@
  */
 
 /**
+ * Resize image to optimal dimensions for API
+ * @param {HTMLCanvasElement} canvas - Source canvas
+ * @param {number} maxDimension - Maximum width or height
+ * @returns {HTMLCanvasElement} - Resized canvas
+ */
+const resizeImageForAPI = (canvas, maxDimension = 1024) => {
+  const { width, height } = canvas;
+  
+  if (width <= maxDimension && height <= maxDimension) {
+    return canvas;
+  }
+  
+  const ratio = Math.min(maxDimension / width, maxDimension / height);
+  const newWidth = Math.round(width * ratio);
+  const newHeight = Math.round(height * ratio);
+  
+  const resizedCanvas = document.createElement('canvas');
+  resizedCanvas.width = newWidth;
+  resizedCanvas.height = newHeight;
+  
+  const ctx = resizedCanvas.getContext('2d');
+  ctx.drawImage(canvas, 0, 0, newWidth, newHeight);
+  
+  return resizedCanvas;
+};
+
+/**
  * Prepare image for optimal Gemini AI processing
  * @param {File} imageFile - The image file to process
  * @returns {Promise<File>} - Enhanced image file
@@ -13,7 +40,10 @@ export const prepareForCleanup = async (imageFile) => {
     console.log('🔧 Pre-processing image for optimal AI results...');
     
     // Load image into canvas
-    const canvas = await loadImageToCanvas(imageFile);
+    let canvas = await loadImageToCanvas(imageFile);
+    
+    // Resize for optimal API performance
+    canvas = resizeImageForAPI(canvas);
     const ctx = canvas.getContext('2d');
     
     // Get image data for processing
