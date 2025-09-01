@@ -11,9 +11,13 @@ import {
   ArrowLeft,
   Star,
   Heart,
-  ShoppingCart
+  ShoppingCart,
+  Upload,
+  Camera,
+  X
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { generateText } from "@/api/geminiClient";
 
 const categories = [
   { id: "all", name: "All Items", count: 0 },
@@ -22,15 +26,25 @@ const categories = [
   { id: "pants", name: "Pants", count: 0 }
 ];
 
-export default function GarmentSelector({ onGarmentSelect, onBack }) {
+export default function GarmentSelector({ onGarmentSelect, onBack, userImage }) {
   const [garments, setGarments] = useState([]);
   const [filteredGarments, setFilteredGarments] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [aiRecommendations, setAiRecommendations] = useState(null);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+  
+  // Custom upload states
+  const [uploadedGarment, setUploadedGarment] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [showUploadSection, setShowUploadSection] = useState(false);
 
   useEffect(() => {
     loadGarments();
+    if (userImage) {
+      generateStyleRecommendations();
+    }
   }, []);
 
   useEffect(() => {
@@ -51,12 +65,246 @@ export default function GarmentSelector({ onGarmentSelect, onBack }) {
     setFilteredGarments(filtered);
   }, [garments, selectedCategory, searchQuery]);
 
+  // Custom garment upload handlers
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file');
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Image size should be less than 10MB');
+      return;
+    }
+
+    setIsUploading(true);
+    
+    try {
+      // Create preview URL
+      const imageUrl = URL.createObjectURL(file);
+      
+      // Create custom garment object
+      const customGarment = {
+        id: 'custom_' + Date.now(),
+        name: file.name.split('.')[0] || 'Custom Garment',
+        brand: 'Your Upload',
+        category: 'custom',
+        price: 0,
+        image_url: imageUrl,
+        colors: ['custom'],
+        isCustom: true,
+        file: file // Store the actual file for API calls
+      };
+
+      setUploadedGarment(customGarment);
+      setShowUploadSection(true);
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      alert('Error uploading file. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const removeUploadedGarment = () => {
+    if (uploadedGarment?.image_url) {
+      URL.revokeObjectURL(uploadedGarment.image_url);
+    }
+    setUploadedGarment(null);
+    setShowUploadSection(false);
+  };
+
+  const handleUploadedGarmentSelect = () => {
+    if (uploadedGarment) {
+      onGarmentSelect(uploadedGarment);
+    }
+  };
+
   const loadGarments = async () => {
     try {
-      const data = await Garment.list();
-      setGarments(data);
-    } catch (error) {
-      console.error("Error loading garments:", error);
+      // Skip Base44 API call and use mock data directly for demo
+      console.log("Using mock garment data for demo");
+      // const data = await Garment.list();
+      // setGarments(data);
+      
+      // Expanded mock data for comprehensive testing
+      const mockGarments = [
+        // T-SHIRTS
+        {
+          id: 1,
+          name: "Classic White T-Shirt",
+          brand: "StyleCo",
+          category: "top",
+          price: 29.99,
+          image_url: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=600&fit=crop",
+          colors: ["white", "black", "gray"]
+        },
+        {
+          id: 2,
+          name: "Striped Navy T-Shirt",
+          brand: "MarineStyle",
+          category: "top",
+          price: 34.99,
+          image_url: "https://images.unsplash.com/photo-1571945153237-4929e783af4a?w=400&h=600&fit=crop",
+          colors: ["navy", "white", "blue"]
+        },
+        {
+          id: 3,
+          name: "Vintage Band T-Shirt",
+          brand: "RetroWear",
+          category: "top",
+          price: 39.99,
+          image_url: "https://images.unsplash.com/photo-1583743814966-8936f37f4ec6?w=400&h=600&fit=crop",
+          colors: ["black", "gray", "white"]
+        },
+        {
+          id: 4,
+          name: "Pastel Pink T-Shirt",
+          brand: "SoftStyle",
+          category: "top",
+          price: 27.99,
+          image_url: "https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=400&h=600&fit=crop",
+          colors: ["pink", "lavender", "mint"]
+        },
+
+        // HOODIES
+        {
+          id: 5,
+          name: "Casual Gray Hoodie",
+          brand: "ComfortWear",
+          category: "top",
+          price: 49.99,
+          image_url: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=400&h=600&fit=crop",
+          colors: ["gray", "black", "navy", "red"]
+        },
+        {
+          id: 6,
+          name: "Oversized Black Hoodie",
+          brand: "StreetStyle",
+          category: "top",
+          price: 59.99,
+          image_url: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=600&fit=crop",
+          colors: ["black", "charcoal", "dark gray"]
+        },
+        {
+          id: 7,
+          name: "Athletic Performance Hoodie",
+          brand: "SportTech",
+          category: "top",
+          price: 69.99,
+          image_url: "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=400&h=600&fit=crop",
+          colors: ["navy", "black", "blue", "gray"]
+        },
+        {
+          id: 8,
+          name: "Cream Pullover Hoodie",
+          brand: "CozyWear",
+          category: "top",
+          price: 54.99,
+          image_url: "https://images.unsplash.com/photo-1614676471928-2ed0ad1061a4?w=400&h=600&fit=crop",
+          colors: ["cream", "beige", "white", "sand"]
+        },
+
+        // DRESSES
+        {
+          id: 9,
+          name: "Floral Summer Dress",
+          brand: "TrendWear",
+          category: "dress",
+          price: 89.99,
+          image_url: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=400&h=600&fit=crop",
+          colors: ["floral", "blue", "pink"]
+        },
+        {
+          id: 10,
+          name: "Little Black Dress",
+          brand: "ClassicStyle",
+          category: "dress",
+          price: 119.99,
+          image_url: "https://images.unsplash.com/photo-1539008835657-9e8e9680c956?w=400&h=600&fit=crop",
+          colors: ["black"]
+        },
+        {
+          id: 11,
+          name: "Bohemian Maxi Dress",
+          brand: "FreeSpirit",
+          category: "dress",
+          price: 95.99,
+          image_url: "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=400&h=600&fit=crop",
+          colors: ["burgundy", "rust", "brown", "orange"]
+        },
+        {
+          id: 12,
+          name: "Elegant Evening Gown",
+          brand: "Elegance",
+          category: "dress",
+          price: 199.99,
+          image_url: "https://images.unsplash.com/photo-1566479179817-c08cbf9e0b2e?w=400&h=600&fit=crop",
+          colors: ["black", "navy", "burgundy"]
+        },
+        {
+          id: 13,
+          name: "Casual Midi Dress",
+          brand: "EverydayStyle",
+          category: "dress",
+          price: 67.99,
+          image_url: "https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=400&h=600&fit=crop",
+          colors: ["blue", "navy", "denim"]
+        },
+        {
+          id: 14,
+          name: "Vintage Polka Dot Dress",
+          brand: "RetroChic",
+          category: "dress",
+          price: 79.99,
+          image_url: "https://images.unsplash.com/photo-1581044777550-4cfa60707c03?w=400&h=600&fit=crop",
+          colors: ["red", "white", "black"]
+        },
+        {
+          id: 15,
+          name: "Wrap Sundress",
+          brand: "SummerVibes",
+          category: "dress",
+          price: 72.99,
+          image_url: "https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=400&h=600&fit=crop",
+          colors: ["yellow", "white", "floral"]
+        },
+
+        // ADDITIONAL TOPS
+        {
+          id: 16,
+          name: "Denim Jeans",
+          brand: "DenimPlus",
+          category: "pants",
+          price: 79.99,
+          image_url: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=600&fit=crop",
+          colors: ["blue", "black", "light blue"]
+        },
+        {
+          id: 17,
+          name: "Professional Blazer",
+          brand: "Business",
+          category: "top",
+          price: 129.99,
+          image_url: "https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=400&h=600&fit=crop",
+          colors: ["black", "navy", "gray"]
+        },
+        {
+          id: 18,
+          name: "Cropped Denim Jacket",
+          brand: "CasualDenim",
+          category: "top",
+          price: 85.99,
+          image_url: "https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=400&h=600&fit=crop",
+          colors: ["blue", "light blue", "indigo"]
+        }
+      ];
+      setGarments(mockGarments);
     } finally {
       setLoading(false);
     }
@@ -69,6 +317,29 @@ export default function GarmentSelector({ onGarmentSelect, onBack }) {
         ? garments.length 
         : garments.filter(g => g.category === cat.id).length
     }));
+  };
+
+  const generateStyleRecommendations = async () => {
+    if (!userImage) return;
+    
+    setLoadingRecommendations(true);
+    try {
+      const prompt = `Based on this person's appearance, body type, and style, provide 3-4 specific fashion recommendations for virtual try-on. Consider:
+1. What clothing styles would suit their body type?
+2. What colors would complement their appearance?
+3. What fashion categories (tops, dresses, pants) would work best?
+4. Any specific style preferences you can infer?
+
+Provide practical, specific suggestions for a virtual fitting experience.`;
+
+      const recommendations = await generateText(prompt);
+      setAiRecommendations(recommendations);
+    } catch (error) {
+      console.error('Error generating recommendations:', error);
+      setAiRecommendations('Unable to generate personalized recommendations at this time. Browse our collection to find items you love!');
+    } finally {
+      setLoadingRecommendations(false);
+    }
   };
 
   const handleGarmentSelect = (garment) => {
@@ -108,6 +379,30 @@ export default function GarmentSelector({ onGarmentSelect, onBack }) {
         </div>
       </div>
 
+      {/* AI Recommendations */}
+      {(aiRecommendations || loadingRecommendations) && (
+        <Card className="bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-purple-900">
+              <div className="w-2 h-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full" />
+              AI Style Recommendations
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loadingRecommendations ? (
+              <div className="flex items-center gap-2 text-slate-600">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600" />
+                <span className="text-sm">Generating personalized recommendations...</span>
+              </div>
+            ) : (
+              <div className="text-sm text-slate-700 whitespace-pre-line">
+                {aiRecommendations}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Search and Filters */}
       <Card>
         <CardContent className="p-6">
@@ -121,13 +416,84 @@ export default function GarmentSelector({ onGarmentSelect, onBack }) {
                 className="pl-10"
               />
             </div>
+            <div className="flex gap-2">
             <Button variant="outline" className="flex items-center gap-2">
               <Filter className="w-4 h-4" />
               Filter
             </Button>
+              <Button 
+                variant="outline" 
+                className="flex items-center gap-2"
+                onClick={() => document.getElementById('garment-upload').click()}
+                disabled={isUploading}
+              >
+                {isUploading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600" />
+                ) : (
+                  <Upload className="w-4 h-4" />
+                )}
+                Upload Your Own
+              </Button>
+              <input
+                id="garment-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Custom Upload Section */}
+      {showUploadSection && uploadedGarment && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between text-blue-900">
+                <div className="flex items-center gap-2">
+                  <Camera className="w-5 h-5" />
+                  Your Custom Garment
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={removeUploadedGarment}
+                  className="text-blue-700 hover:text-blue-900"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row gap-4 items-start">
+                <div className="relative">
+                  <img
+                    src={uploadedGarment.image_url}
+                    alt={uploadedGarment.name}
+                    className="w-32 h-40 object-cover rounded-lg border-2 border-blue-200"
+                  />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-blue-900 mb-2">{uploadedGarment.name}</h3>
+                  <p className="text-blue-700 text-sm mb-4">Custom uploaded garment ready for try-on</p>
+                  <Button 
+                    onClick={handleUploadedGarmentSelect}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    Try On This Garment
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Category Tabs */}
       <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>

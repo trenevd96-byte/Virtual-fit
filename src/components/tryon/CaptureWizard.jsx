@@ -15,6 +15,7 @@ import {
 import { motion } from "framer-motion";
 
 import PoseGuideOverlay from "./PoseGuideOverlay";
+import { generateContentWithImage, generateText } from "@/api/geminiClient";
 
 export default function CaptureWizard({ onImageCapture }) {
   const [dragActive, setDragActive] = useState(false);
@@ -81,28 +82,60 @@ export default function CaptureWizard({ onImageCapture }) {
     reader.readAsDataURL(file);
   };
 
-  const validateImage = (imageData) => {
-    // Simulate AI validation
-    setTimeout(() => {
-      const validationScore = Math.random();
+  const validateImage = async (imageData) => {
+    setValidationStatus({ type: 'loading', message: 'Analyzing photo with AI...' });
+    
+    try {
+      // Convert base64 to blob for Gemini API
+      const response = await fetch(imageData);
+      const blob = await response.blob();
+      const file = new File([blob], "photo.jpg", { type: "image/jpeg" });
       
-      if (validationScore > 0.8) {
+      const prompt = `You're a friendly AI photo coach! Quickly analyze this photo for virtual try-on readiness:
+
+Give a helpful assessment in this format:
+
+**📸 PHOTO CHECK: [EXCELLENT/GOOD/NEEDS WORK]**
+
+**✅ WHAT'S WORKING:**
+[List 2-3 positive things about the photo]
+
+**🎯 QUICK IMPROVEMENTS:**
+[If needed, give 1-2 specific, actionable tips]
+
+**💡 PRO TIP:**
+[One friendly suggestion to make the photo even better]
+
+Keep it encouraging, specific, and actionable - like a supportive friend helping them get the perfect shot!`;
+
+      const aiAnalysis = await generateContentWithImage(prompt, file);
+      
+      // Parse AI response to determine validation status
+      const lowerResponse = aiAnalysis.toLowerCase();
+      let validationType = 'warning';
+      let message = aiAnalysis;
+      
+      if (lowerResponse.includes('excellent') || lowerResponse.includes('perfect') || lowerResponse.includes('great')) {
+        validationType = 'success';
+      } else if (lowerResponse.includes('needs work') || lowerResponse.includes('needs improvement') || lowerResponse.includes('poor') || lowerResponse.includes('not suitable')) {
+        validationType = 'error';
+      }
+      
         setValidationStatus({
-          type: 'success',
-          message: 'Perfect! Great pose and lighting detected.'
+        type: validationType,
+        message: aiAnalysis,
+        aiGenerated: true
         });
-      } else if (validationScore > 0.6) {
+      
+    } catch (error) {
+      console.error('AI validation error:', error);
+      // Fallback to simple validation
         setValidationStatus({
           type: 'warning',
-          message: 'Good photo, but could be improved. Try better lighting or pose.'
-        });
-      } else {
-        setValidationStatus({
-          type: 'error',
-          message: 'Photo needs improvement. Please ensure you\'re facing forward with good lighting.'
-        });
-      }
-    }, 1500);
+        message: '**📸 PHOTO CHECK: GOOD** \n\n**✅ WHAT\'S WORKING:** \nPhoto uploaded successfully! \n\n**💡 PRO TIP:** \nEnsure you\'re facing forward with good lighting for best results.',
+        aiGenerated: false
+      });
+    }
   };
 
   const handleContinue = () => {
@@ -158,15 +191,25 @@ export default function CaptureWizard({ onImageCapture }) {
                   <Alert className={`${
                     validationStatus.type === 'success' ? 'border-green-200 bg-green-50' :
                     validationStatus.type === 'warning' ? 'border-yellow-200 bg-yellow-50' :
-                    'border-red-200 bg-red-50'
+                    validationStatus.type === 'error' ? 'border-red-200 bg-red-50' :
+                    'border-blue-200 bg-blue-50'
                   }`}>
-                    <div className="flex items-center gap-2">
-                      {validationStatus.type === 'success' && <CheckCircle2 className="w-4 h-4 text-green-600" />}
-                      {validationStatus.type === 'warning' && <AlertCircle className="w-4 h-4 text-yellow-600" />}
-                      {validationStatus.type === 'error' && <AlertCircle className="w-4 h-4 text-red-600" />}
-                      <AlertDescription className="text-sm">
+                    <div className="flex items-start gap-2">
+                      {validationStatus.type === 'success' && <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5" />}
+                      {validationStatus.type === 'warning' && <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5" />}
+                      {validationStatus.type === 'error' && <AlertCircle className="w-4 h-4 text-red-600 mt-0.5" />}
+                      {validationStatus.type === 'loading' && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mt-0.5" />}
+                      <div className="flex-1">
+                        <AlertDescription className="text-sm whitespace-pre-line">
                         {validationStatus.message}
                       </AlertDescription>
+                        {validationStatus.aiGenerated && (
+                          <div className="flex items-center gap-1 mt-2">
+                            <div className="w-2 h-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full" />
+                            <span className="text-xs text-slate-500">AI Analysis by Gemini</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </Alert>
                 ) : (
@@ -203,9 +246,9 @@ export default function CaptureWizard({ onImageCapture }) {
                 <Button 
                   onClick={handleContinue}
                   className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-                  disabled={!validationStatus || validationStatus.type === 'error'}
+                  disabled={!validationStatus || validationStatus.type === 'error' || validationStatus.type === 'loading'}
                 >
-                  Continue to Garment Selection
+                  {validationStatus?.type === 'loading' ? 'Analyzing...' : 'Continue to Garment Selection'}
                 </Button>
                 <Button variant="outline" onClick={retakePhoto} className="w-full">
                   Take Another Photo

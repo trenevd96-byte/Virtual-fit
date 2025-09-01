@@ -2,7 +2,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Sparkles, Camera, Grid3X3, User, Home } from "lucide-react";
+import { Sparkles, Camera, Grid3X3, User, Home, TestTube } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -37,6 +37,11 @@ const navigationItems = [
     title: "Profile",
     url: createPageUrl("Profile"),
     icon: User,
+  },
+  {
+    title: "Gemini Test",
+    url: createPageUrl("GeminiTest"),
+    icon: TestTube,
   },
 ];
 

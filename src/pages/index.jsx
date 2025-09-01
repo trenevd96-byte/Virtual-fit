@@ -8,6 +8,8 @@ import Gallery from "./Gallery";
 
 import Profile from "./Profile";
 
+import GeminiTest from "../components/test/GeminiTest";
+
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 
 const PAGES = {
@@ -19,6 +21,8 @@ const PAGES = {
     Gallery: Gallery,
     
     Profile: Profile,
+    
+    GeminiTest: GeminiTest,
     
 }
 
@@ -54,6 +58,8 @@ function PagesContent() {
                 <Route path="/Gallery" element={<Gallery />} />
                 
                 <Route path="/Profile" element={<Profile />} />
+                
+                <Route path="/GeminiTest" element={<GeminiTest />} />
                 
             </Routes>
         </Layout>

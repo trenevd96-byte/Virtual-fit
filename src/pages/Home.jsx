@@ -15,6 +15,7 @@ import {
   TrendingUp
 } from "lucide-react";
 import { motion } from "framer-motion";
+import VirtualTryOnShowcase from "@/components/ui/virtual-tryon-showcase";
 
 const features = [
   {
@@ -134,6 +135,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Virtual Try-On Showcase */}
+      <VirtualTryOnShowcase />
 
       {/* Features Section */}
       <section className="px-6 py-20">
