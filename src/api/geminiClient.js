@@ -27,7 +27,7 @@ const makeGeminiRequest = async (endpoint, payload) => {
   try {
     if (isProd) {
       // In production, proxy through backend to keep API key server-side
-      const response = await fetch('/api/geminiHandler', {
+      const response = await fetch('/api/gemini', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

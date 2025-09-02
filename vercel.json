@@ -1,12 +1,13 @@
 {
   "version": 2,
   "functions": {
-    "api/geminiHandler.js": {
+    "api/gemini.js": {
       "maxDuration": 60
     }
   },
   "routes": [
-    { "src": "/api/geminiHandler", "dest": "/api/geminiHandler.js" },
+    { "src": "/api/gemini", "dest": "/api/gemini.js" },
+    { "src": "/api/test", "dest": "/api/test.js" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
