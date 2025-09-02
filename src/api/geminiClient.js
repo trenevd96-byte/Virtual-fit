@@ -138,8 +138,12 @@ export const generateImage = async (prompt, options = {}) => {
 // Generate content with both text and image input
 export const generateContentWithImage = async (prompt, imageFile, model = "gemini-2.5-flash") => {
   try {
+    // Compress image for production deployment to avoid 6MB payload limit
+    const { prepareImageForAPI } = await import('../utils/imageCompression.js');
+    const processedFile = await prepareImageForAPI(imageFile);
+    
     // Convert image to base64 format
-    const imageData = await fileToGenerativePart(imageFile);
+    const imageData = await fileToGenerativePart(processedFile);
     
     const payload = {
       contents: [{
@@ -238,10 +242,13 @@ export const nano_banana_cleanup = async (originalImageFile, tryOnImageData, gar
     
     // Pre-process original image for enhancement reference
     const { prepareForCleanup } = await import('../utils/imageProcessing.js');
+    const { prepareImageForAPI } = await import('../utils/imageCompression.js');
+    
     const enhancedOriginalImage = await prepareForCleanup(originalImageFile);
+    const compressedOriginalImage = await prepareImageForAPI(enhancedOriginalImage);
     
     // Convert the enhanced original image to format we can work with
-    const originalImageData = await fileToGenerativePart(enhancedOriginalImage);
+    const originalImageData = await fileToGenerativePart(compressedOriginalImage);
     
     // Create the enhancement prompt
     const enhancementPrompt = `
@@ -364,10 +371,13 @@ export const generateVirtualTryOnImage = async (userImageFile, garmentImageUrl, 
     // Pre-process user image for optimal results
     console.log('🔧 Pre-processing user image for optimal AI results...');
     const { prepareForCleanup } = await import('../utils/imageProcessing.js');
+    const { prepareImageForAPI } = await import('../utils/imageCompression.js');
+    
     const enhancedUserImage = await prepareForCleanup(userImageFile);
+    const compressedUserImage = await prepareImageForAPI(enhancedUserImage);
     
     // Convert enhanced user image to base64
-    const userImageData = await fileToGenerativePart(enhancedUserImage);
+    const userImageData = await fileToGenerativePart(compressedUserImage);
     
     // Handle garment image - either from URL or uploaded file
     let garmentImageData;
@@ -375,7 +385,8 @@ export const generateVirtualTryOnImage = async (userImageFile, garmentImageUrl, 
       // Pre-process uploaded garment file for better quality
       console.log('🔧 Pre-processing custom garment image...');
       const enhancedGarmentImage = await prepareForCleanup(garmentFile);
-      garmentImageData = await fileToGenerativePart(enhancedGarmentImage);
+      const compressedGarmentImage = await prepareImageForAPI(enhancedGarmentImage);
+      garmentImageData = await fileToGenerativePart(compressedGarmentImage);
     } else {
       // Fetch garment image from URL and convert to base64
       const garmentResponse = await fetch(garmentImageUrl);
@@ -385,7 +396,8 @@ export const generateVirtualTryOnImage = async (userImageFile, garmentImageUrl, 
       // Pre-process downloaded garment image
       console.log('🔧 Pre-processing garment image from URL...');
       const enhancedGarmentImage = await prepareForCleanup(garmentImageFile);
-      garmentImageData = await fileToGenerativePart(enhancedGarmentImage);
+      const compressedGarmentImage = await prepareImageForAPI(enhancedGarmentImage);
+      garmentImageData = await fileToGenerativePart(compressedGarmentImage);
     }
     
     const prompt = `VIRTUAL CLOTHING REPLACEMENT: Replace the person's current outfit with the ${garmentName} while keeping everything else identical.
