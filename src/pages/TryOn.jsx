@@ -111,21 +111,28 @@ export default function TryOn() {
     try {
       console.log('Generating virtual try-on with enhanced prompts and retry logic...');
       
-      // Set up progress tracking
-      const originalConsoleLog = console.log;
+      // Set up progress tracking with safe console override
+      const originalConsoleLog = console.log.bind(console);
       console.log = (message) => {
-        if (message.includes('Pre-processing user image')) {
-          setTryOnProgress('🔧 Enhancing image quality (skin tone, contrast, lighting)...');
-        } else if (message.includes('Pre-processing custom garment')) {
-          setTryOnProgress('🔧 Optimizing custom garment image...');
-        } else if (message.includes('Pre-processing garment image from URL')) {
-          setTryOnProgress('🔧 Enhancing garment image quality...');
-        } else if (message.includes('Virtual try-on attempt')) {
-          setTryOnProgress(`AI attempt: ${message}`);
-        } else if (message.includes('Retrying')) {
-          setTryOnProgress('Retrying with different approach...');
+        try {
+          if (typeof message === 'string') {
+            if (message.includes('Pre-processing user image')) {
+              setTryOnProgress('🔧 Enhancing image quality (skin tone, contrast, lighting)...');
+            } else if (message.includes('Pre-processing custom garment')) {
+              setTryOnProgress('🔧 Optimizing custom garment image...');
+            } else if (message.includes('Pre-processing garment image from URL')) {
+              setTryOnProgress('🔧 Enhancing garment image quality...');
+            } else if (message.includes('Virtual try-on attempt')) {
+              setTryOnProgress(`AI attempt: ${message}`);
+            } else if (message.includes('Retrying')) {
+              setTryOnProgress('Retrying with different approach...');
+            }
+          }
+          originalConsoleLog(message);
+        } catch (e) {
+          // Fallback to original console if override fails
+          originalConsoleLog(message);
         }
-        originalConsoleLog(message);
       };
       
       const result = await generateVirtualTryOnImage(
@@ -137,8 +144,10 @@ export default function TryOn() {
         selectedGarment.file // Pass the custom file if it's an uploaded garment
       );
       
-      // Restore console.log
-      console.log = originalConsoleLog;
+      // Restore console.log safely
+      if (originalConsoleLog) {
+        console.log = originalConsoleLog;
+      }
       
       if (result.success && result.imageData) {
         // Convert base64 to data URL for display
@@ -209,7 +218,9 @@ export default function TryOn() {
       
     } catch (error) {
       console.error('Error generating virtual try-on:', error);
-      console.log = originalConsoleLog; // Restore console.log
+      if (originalConsoleLog) {
+        console.log = originalConsoleLog; // Restore console.log safely
+      }
       
       setTryOnProgress('');
       
